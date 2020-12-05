@@ -594,14 +594,18 @@ fn collect_resources(path: &Path, filter: &dyn Fn(&Path) -> bool) -> std::io::Re
 #[cfg(test)]
 mod tests {
     use super::{ChangeDetection, ChangeDetectionBuilder};
+    use std::path::PathBuf;
 
     fn assert_change_detection(builder: ChangeDetectionBuilder, expected: &[&str]) {
-        let mut result = vec![];
+        let mut result: Vec<PathBuf> = vec![];
         let r = &mut result;
 
-        builder.generate_extended(move |path| r.push(path.to_str().unwrap().to_string()));
+        builder.generate_extended(move |path| r.push(path.into()));
 
-        let mut expected = expected.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+        let mut expected = expected
+            .iter()
+            .map(|s| PathBuf::from(s))
+            .collect::<Vec<_>>();
 
         expected.sort();
         result.sort();
