@@ -61,6 +61,7 @@ fn main() {
 }
 ```
 */
+use path_slash::PathExt;
 use std::path::{Path, PathBuf};
 
 /// A change detection entry point.
@@ -489,7 +490,7 @@ pub enum ChangeDetectionPath {
 fn print_change_detection_instruction(path: &Path) {
     println!(
         "cargo:rerun-if-changed={}",
-        path.to_str().expect("can't convert path to utf-8 string")
+        path.to_slash().expect("can't convert path to utf-8 string")
     );
 }
 
