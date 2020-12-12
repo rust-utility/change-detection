@@ -59,3 +59,25 @@ fn main() {
         .generate();
 }
 ```
+
+Using `path-matchers` library you can specify include / exclude filters:
+
+```rust
+#[cfg(features = "glob")]
+use change_detection::{path_matchers::glob, ChangeDetection};
+
+fn main() {
+    #[cfg(features = "glob")]
+    ChangeDetection::exclude(glob("another_path/**/*.tmp").unwrap())
+        .path("static")
+        .path("another_path")
+        .path("build.rs")
+        .generate();
+}
+```
+
+You can actual generated result with this command:
+
+```bash
+find . -name output | xargs cat
+```
