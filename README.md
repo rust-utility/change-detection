@@ -16,7 +16,7 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-change-detection = "1.0"
+change-detection = "1.1"
 ```
 
 Add a call to `build.rs`:

@@ -1,9 +1,9 @@
 [package]
 name = "change-detection"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Alexander Korolev <kilork@yandex.ru>"]
 edition = "2018"
-categories = []
+categories = ["development-tools::build-utils"]
 description = """
 A library to generate change detection instructions during build time.
 """
@@ -13,7 +13,10 @@ license = "Unlicense OR MIT"
 readme = "README.md"
 repository = "https://github.com/rust-utility/change-detection"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = [ "glob" ]
+glob = [ "path-matchers/glob" ]
 
 [dependencies]
 path-slash = "0.1"
+path-matchers = { version = "1.0", default-features = false }

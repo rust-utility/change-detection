@@ -17,7 +17,7 @@ Add dependency to Cargo.toml:
 
 ```toml
 [dependencies]
-change-detection = "1.0"
+change-detection = "1.1"
 ```
 
 Add a call to `build.rs`:
@@ -60,9 +60,38 @@ fn main() {
         .generate();
 }
 ```
+
+Using `path-matchers` library you can specify include / exclude filters:
+
+```rust
+#[cfg(features = "glob")]
+use change_detection::{path_matchers::glob, ChangeDetection};
+
+fn main() {
+    #[cfg(features = "glob")]
+    ChangeDetection::exclude(glob("another_path/**/*.tmp").unwrap())
+        .path("static")
+        .path("another_path")
+        .path("build.rs")
+        .generate();
+}
+```
+
+You can actual generated result with this command:
+
+```bash
+find . -name output | xargs cat
+```
+
 */
+use ::path_matchers::PathMatcher;
 use path_slash::PathExt;
 use std::path::{Path, PathBuf};
+
+/// Reexport `path-matchers`.
+pub mod path_matchers {
+    pub use ::path_matchers::*;
+}
 
 /// A change detection entry point.
 ///
@@ -147,7 +176,7 @@ impl ChangeDetection {
     ///
     /// ```
     /// # use change_detection::ChangeDetection;
-    /// ChangeDetection::path_include("static", |path| {
+    /// ChangeDetection::path_include("static", |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///         .unwrap_or(false)
@@ -156,7 +185,7 @@ impl ChangeDetection {
     pub fn path_include<P, F>(path: P, filter: F) -> ChangeDetectionBuilder
     where
         P: AsRef<Path>,
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
         ChangeDetectionBuilder::default().path_include(path, filter)
     }
@@ -171,7 +200,7 @@ impl ChangeDetection {
     ///
     /// ```
     /// # use change_detection::ChangeDetection;
-    /// ChangeDetection::path_exclude("static", |path| {
+    /// ChangeDetection::path_exclude("static", |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///         .unwrap_or(false)
@@ -180,7 +209,7 @@ impl ChangeDetection {
     pub fn path_exclude<P, F>(path: P, filter: F) -> ChangeDetectionBuilder
     where
         P: AsRef<Path>,
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
         ChangeDetectionBuilder::default().path_exclude(path, filter)
     }
@@ -195,11 +224,11 @@ impl ChangeDetection {
     ///
     /// ```
     /// # use change_detection::ChangeDetection;
-    /// ChangeDetection::path_filter("static", |path| {
+    /// ChangeDetection::path_filter("static", |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().starts_with("a"))
     ///         .unwrap_or(false)
-    /// }, |path| {
+    /// }, |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///         .unwrap_or(false)
@@ -208,8 +237,8 @@ impl ChangeDetection {
     pub fn path_filter<P, F1, F2>(path: P, include: F1, exclude: F2) -> ChangeDetectionBuilder
     where
         P: AsRef<Path>,
-        F1: Fn(&Path) -> bool + 'static,
-        F2: Fn(&Path) -> bool + 'static,
+        F1: PathMatcher + 'static,
+        F2: PathMatcher + 'static,
     {
         ChangeDetectionBuilder::default().path_filter(path, include, exclude)
     }
@@ -222,7 +251,7 @@ impl ChangeDetection {
     ///
     /// ```
     /// # use change_detection::ChangeDetection;
-    /// ChangeDetection::include(|path| {
+    /// ChangeDetection::include(|path: &std::path::Path| {
     ///         path.file_name()
     ///             .map(|filename| filename.to_str().unwrap().starts_with("a"))
     ///             .unwrap_or(false)
@@ -234,7 +263,7 @@ impl ChangeDetection {
     /// ```
     pub fn include<F>(filter: F) -> ChangeDetectionBuilder
     where
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
         ChangeDetectionBuilder::default().include(filter)
     }
@@ -247,7 +276,7 @@ impl ChangeDetection {
     ///
     /// ```
     /// # use change_detection::ChangeDetection;
-    /// ChangeDetection::exclude(|path| {
+    /// ChangeDetection::exclude(|path: &std::path::Path| {
     ///         path.file_name()
     ///             .map(|filename| filename.to_str().unwrap().starts_with("a"))
     ///             .unwrap_or(false)
@@ -259,7 +288,7 @@ impl ChangeDetection {
     /// ```
     pub fn exclude<F>(filter: F) -> ChangeDetectionBuilder
     where
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
         ChangeDetectionBuilder::default().exclude(filter)
     }
@@ -272,11 +301,11 @@ impl ChangeDetection {
     ///
     /// ```
     /// # use change_detection::ChangeDetection;
-    /// ChangeDetection::filter(|path| {
+    /// ChangeDetection::filter(|path: &std::path::Path| {
     ///         path.file_name()
     ///             .map(|filename| filename.to_str().unwrap().starts_with("a"))
     ///             .unwrap_or(false)
-    ///     }, |path| {
+    ///     }, |path: &std::path::Path| {
     ///         path.file_name()
     ///             .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///             .unwrap_or(false)
@@ -288,8 +317,8 @@ impl ChangeDetection {
     /// ```
     pub fn filter<F1, F2>(include: F1, exclude: F2) -> ChangeDetectionBuilder
     where
-        F1: Fn(&Path) -> bool + 'static,
-        F2: Fn(&Path) -> bool + 'static,
+        F1: PathMatcher + 'static,
+        F2: PathMatcher + 'static,
     {
         ChangeDetectionBuilder::default()
             .include(include)
@@ -303,8 +332,8 @@ impl ChangeDetection {
 /// You should not use this directly, use [`ChangeDetection`] as an entry point instead.
 #[derive(Default)]
 pub struct ChangeDetectionBuilder {
-    include: Option<ChangeDetectionFilter>,
-    exclude: Option<ChangeDetectionFilter>,
+    include: Option<Box<dyn PathMatcher>>,
+    exclude: Option<Box<dyn PathMatcher>>,
     paths: Vec<ChangeDetectionPath>,
 }
 
@@ -349,7 +378,7 @@ impl ChangeDetectionBuilder {
     /// ```
     /// # use change_detection::ChangeDetectionBuilder;
     /// # let builder = ChangeDetectionBuilder::default();
-    /// builder.path_include("static", |path| {
+    /// builder.path_include("static", |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///         .unwrap_or(false)
@@ -358,11 +387,11 @@ impl ChangeDetectionBuilder {
     pub fn path_include<P, F>(mut self, path: P, filter: F) -> ChangeDetectionBuilder
     where
         P: AsRef<Path>,
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
         self.paths.push(ChangeDetectionPath::PathInclude(
             path.as_ref().into(),
-            filter.into(),
+            Box::new(filter),
         ));
         self
     }
@@ -378,7 +407,7 @@ impl ChangeDetectionBuilder {
     /// ```
     /// # use change_detection::ChangeDetectionBuilder;
     /// # let builder = ChangeDetectionBuilder::default();
-    /// builder.path_exclude("static", |path| {
+    /// builder.path_exclude("static", |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///         .unwrap_or(false)
@@ -387,11 +416,11 @@ impl ChangeDetectionBuilder {
     pub fn path_exclude<P, F>(mut self, path: P, filter: F) -> ChangeDetectionBuilder
     where
         P: AsRef<Path>,
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
         self.paths.push(ChangeDetectionPath::PathExclude(
             path.as_ref().into(),
-            filter.into(),
+            Box::new(filter),
         ));
         self
     }
@@ -407,11 +436,11 @@ impl ChangeDetectionBuilder {
     /// ```
     /// # use change_detection::ChangeDetectionBuilder;
     /// # let builder = ChangeDetectionBuilder::default();
-    /// builder.path_filter("static", |path| {
+    /// builder.path_filter("static", |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().starts_with("a"))
     ///         .unwrap_or(false)
-    /// }, |path| {
+    /// }, |path: &std::path::Path| {
     ///     path.file_name()
     ///         .map(|filename| filename.to_str().unwrap().ends_with("b"))
     ///         .unwrap_or(false)
@@ -425,30 +454,30 @@ impl ChangeDetectionBuilder {
     ) -> ChangeDetectionBuilder
     where
         P: AsRef<Path>,
-        F1: Fn(&Path) -> bool + 'static,
-        F2: Fn(&Path) -> bool + 'static,
+        F1: PathMatcher + 'static,
+        F2: PathMatcher + 'static,
     {
         self.paths.push(ChangeDetectionPath::PathIncludeExclude {
             path: path.as_ref().into(),
-            include: include.into(),
-            exclude: exclude.into(),
+            include: Box::new(include),
+            exclude: Box::new(exclude),
         });
         self
     }
 
     fn include<F>(mut self, filter: F) -> ChangeDetectionBuilder
     where
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
-        self.include = Some(filter.into());
+        self.include = Some(Box::new(filter));
         self
     }
 
     fn exclude<F>(mut self, filter: F) -> ChangeDetectionBuilder
     where
-        F: Fn(&Path) -> bool + 'static,
+        F: PathMatcher + 'static,
     {
-        self.exclude = Some(filter.into());
+        self.exclude = Some(Box::new(filter));
         self
     }
 
@@ -468,22 +497,22 @@ impl ChangeDetectionBuilder {
     fn filter_include_exclude(&self, path: &Path) -> bool {
         self.include
             .as_ref()
-            .map_or(true, |filter| filter.apply(path))
+            .map_or(true, |filter| filter.matches(path))
             && self
                 .exclude
                 .as_ref()
-                .map_or(true, |filter| !filter.apply(path))
+                .map_or(true, |filter| !filter.matches(path))
     }
 }
 
 pub enum ChangeDetectionPath {
     Path(PathBuf),
-    PathInclude(PathBuf, ChangeDetectionFilter),
-    PathExclude(PathBuf, ChangeDetectionFilter),
+    PathInclude(PathBuf, Box<dyn PathMatcher>),
+    PathExclude(PathBuf, Box<dyn PathMatcher>),
     PathIncludeExclude {
         path: PathBuf,
-        include: ChangeDetectionFilter,
-        exclude: ChangeDetectionFilter,
+        include: Box<dyn PathMatcher>,
+        exclude: Box<dyn PathMatcher>,
     },
 }
 
@@ -497,17 +526,17 @@ fn print_change_detection_instruction(path: &Path) {
 impl ChangeDetectionPath {
     fn collect(&self, builder: &ChangeDetectionBuilder) -> std::io::Result<Vec<PathBuf>> {
         let filter_fn: Box<dyn Fn(&_) -> bool> =
-            Box::new(|path| builder.filter_include_exclude(path));
+            Box::new(|path: &std::path::Path| builder.filter_include_exclude(path));
 
         let (path, filter): (&PathBuf, Box<dyn Fn(&_) -> bool>) = match self {
             ChangeDetectionPath::Path(path) => (path, filter_fn),
             ChangeDetectionPath::PathInclude(path, include_filter) => (
                 path,
-                Box::new(move |p: &Path| filter_fn(p.as_ref()) && include_filter.apply(p)),
+                Box::new(move |p: &Path| filter_fn(p.as_ref()) && include_filter.matches(p)),
             ),
             ChangeDetectionPath::PathExclude(path, exclude_filter) => (
                 path,
-                Box::new(move |p: &Path| filter_fn(p.as_ref()) && !exclude_filter.apply(p)),
+                Box::new(move |p: &Path| filter_fn(p.as_ref()) && !exclude_filter.matches(p)),
             ),
             ChangeDetectionPath::PathIncludeExclude {
                 path,
@@ -516,7 +545,7 @@ impl ChangeDetectionPath {
             } => (
                 path,
                 Box::new(move |p: &Path| {
-                    filter_fn(p.as_ref()) && include.apply(p) && !exclude.apply(p)
+                    filter_fn(p.as_ref()) && include.matches(p) && !exclude.matches(p)
                 }),
             ),
         };
@@ -543,24 +572,7 @@ where
     }
 }
 
-pub struct ChangeDetectionFilter(Box<dyn Fn(&Path) -> bool>);
-
-impl ChangeDetectionFilter {
-    fn apply(&self, path: &Path) -> bool {
-        self.0(path)
-    }
-}
-
-impl<T> From<T> for ChangeDetectionFilter
-where
-    T: Fn(&Path) -> bool + 'static,
-{
-    fn from(value: T) -> Self {
-        Self(Box::new(value))
-    }
-}
-
-fn collect_resources(path: &Path, filter: &dyn Fn(&Path) -> bool) -> std::io::Result<Vec<PathBuf>> {
+fn collect_resources(path: &Path, filter: &dyn PathMatcher) -> std::io::Result<Vec<PathBuf>> {
     let mut result = vec![];
 
     if !path.exists() {
@@ -577,7 +589,7 @@ fn collect_resources(path: &Path, filter: &dyn Fn(&Path) -> bool) -> std::io::Re
         let entry = entry?;
         let path = entry.path();
 
-        if !filter(path.as_ref()) {
+        if !filter.matches(path.as_ref()) {
             continue;
         }
 
@@ -595,7 +607,7 @@ fn collect_resources(path: &Path, filter: &dyn Fn(&Path) -> bool) -> std::io::Re
 #[cfg(test)]
 mod tests {
     use super::{ChangeDetection, ChangeDetectionBuilder};
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn assert_change_detection(builder: ChangeDetectionBuilder, expected: &[&str]) {
         let mut result: Vec<PathBuf> = vec![];
@@ -643,7 +655,7 @@ mod tests {
     #[test]
     fn fixture_01_global_include() {
         assert_change_detection(
-            ChangeDetection::include(|path| {
+            ChangeDetection::include(|path: &Path| {
                 path.file_name()
                     .map(|filename| filename.to_str().unwrap().ends_with("b"))
                     .unwrap_or(false)
@@ -656,7 +668,7 @@ mod tests {
     #[test]
     fn fixture_01_global_exclude() {
         assert_change_detection(
-            ChangeDetection::exclude(|path| {
+            ChangeDetection::exclude(|path: &Path| {
                 path.file_name()
                     .map(|filename| filename.to_str().unwrap().ends_with("b"))
                     .unwrap_or(false)
@@ -676,12 +688,12 @@ mod tests {
     fn fixture_01_global_filter() {
         assert_change_detection(
             ChangeDetection::filter(
-                |path| {
+                |path: &Path| {
                     path.file_name()
                         .map(|filename| filename.to_str().unwrap().ends_with("b"))
                         .unwrap_or(false)
                 },
-                |path| {
+                |path: &Path| {
                     path.file_name()
                         .map(|filename| filename.to_str().unwrap().starts_with("a"))
                         .unwrap_or(false)
@@ -740,6 +752,26 @@ mod tests {
                 "fixtures-03/hello",
                 "fixtures-03/hello.c",
                 "fixtures-03/hello.js",
+            ],
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "glob")]
+    fn path_matchers() {
+        use path_matchers::glob;
+        assert_change_detection(
+            ChangeDetection::include(glob("**/a*").unwrap())
+                .path("fixtures-01")
+                .path("fixtures-02")
+                .path("fixtures-03"),
+            &[
+                "fixtures-01",
+                "fixtures-01/a",
+                "fixtures-01/ab",
+                "fixtures-02",
+                "fixtures-02/abc",
+                "fixtures-03",
             ],
         );
     }
