@@ -77,7 +77,7 @@ fn main() {
 }
 ```
 
-You can actual generated result with this command:
+You can find generated result with this command:
 
 ```bash
 find . -name output | xargs cat
@@ -774,5 +774,10 @@ mod tests {
                 "fixtures-03",
             ],
         );
+    }
+
+    #[test]
+    fn npm_example() {
+        assert_change_detection(ChangeDetection::path("fixtures-04"), &[]);
     }
 }
