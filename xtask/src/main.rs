@@ -33,8 +33,17 @@ fn cargo_clean_release() -> Result<()> {
     Ok(())
 }
 
-fn cargo_tests_npm_build() -> Result<String> {
+fn cargo_tests_npm_build_without_src_changes() -> Result<String> {
+    cargo_tests_npm_build("TEST_NO_MODIFY_SRC")
+}
+
+fn cargo_tests_npm_build_with_src_changes() -> Result<String> {
+    cargo_tests_npm_build("TEST_MODIFY_SRC")
+}
+
+fn cargo_tests_npm_build(env_flag: &str) -> Result<String> {
     let output = Command::new(cargo())
+        .env(env_flag, "true")
         .args(&["run", "--release"])
         .current_dir(project_root().join("tests/npm-build"))
         .output()?;
@@ -47,15 +56,34 @@ fn cargo_tests_npm_build() -> Result<String> {
     Ok(String::from_utf8(output.stdout)?)
 }
 
-fn tests_npm_build() -> Result<()> {
-    let run1 = cargo_tests_npm_build()?;
-    let run2 = cargo_tests_npm_build()?;
+fn tests_npm_build_without_src_changes() -> Result<()> {
+    cargo_clean_release()?;
+    let run1 = cargo_tests_npm_build_without_src_changes()?;
+    let run2 = cargo_tests_npm_build_without_src_changes()?;
 
     if run1 != run2 {
         return Err(anyhow!(
             "\
 outputs of two sequentional 'npm-build' test runs do not match: {} != {}
 This means build.rs was triggered second time but it should not.",
+            run1,
+            run2
+        ));
+    }
+
+    Ok(())
+}
+
+fn tests_npm_build_with_src_changes() -> Result<()> {
+    cargo_clean_release()?;
+    let run1 = cargo_tests_npm_build_with_src_changes()?;
+    let run2 = cargo_tests_npm_build_with_src_changes()?;
+
+    if run1 == run2 {
+        return Err(anyhow!(
+            "\
+outputs of two sequentional 'npm-build' test runs should not match: {} == {}
+This means build.rs was not triggered second time but it must.",
             run1,
             run2
         ));
@@ -72,9 +100,9 @@ fn main() -> Result<()> {
         "tests" => {
             args.finish();
 
-            cargo_clean_release()?;
+            tests_npm_build_without_src_changes()?;
 
-            tests_npm_build()?;
+            tests_npm_build_with_src_changes()?;
         }
         _ => {
             eprintln!(
