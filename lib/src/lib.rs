@@ -575,11 +575,9 @@ where
 fn collect_resources(path: &Path, filter: &dyn PathMatcher) -> std::io::Result<Vec<PathBuf>> {
     let mut result = vec![];
 
-    if !path.exists() {
-        return Ok(result);
+    if filter.matches(path.as_ref()) {
+        result.push(path.into());
     }
-
-    result.push(path.into());
 
     if !path.is_dir() {
         return Ok(result);
@@ -589,16 +587,8 @@ fn collect_resources(path: &Path, filter: &dyn PathMatcher) -> std::io::Result<V
         let entry = entry?;
         let path = entry.path();
 
-        if !filter.matches(path.as_ref()) {
-            continue;
-        }
-
-        if path.is_dir() {
-            let nested = collect_resources(path.as_ref(), filter)?;
-            result.extend(nested);
-        }
-
-        result.push(path);
+        let nested = collect_resources(path.as_ref(), filter)?;
+        result.extend(nested);
     }
 
     Ok(result)
@@ -661,7 +651,7 @@ mod tests {
                     .unwrap_or(false)
             })
             .path("fixtures-01"),
-            &["fixtures-01", "fixtures-01/ab", "fixtures-01/b"],
+            &["fixtures-01/ab", "fixtures-01/b"],
         );
     }
 
@@ -700,7 +690,7 @@ mod tests {
                 },
             )
             .path("fixtures-01"),
-            &["fixtures-01", "fixtures-01/b"],
+            &["fixtures-01/b"],
         );
     }
 
@@ -765,19 +755,22 @@ mod tests {
                 .path("fixtures-01")
                 .path("fixtures-02")
                 .path("fixtures-03"),
-            &[
-                "fixtures-01",
-                "fixtures-01/a",
-                "fixtures-01/ab",
-                "fixtures-02",
-                "fixtures-02/abc",
-                "fixtures-03",
-            ],
+            &["fixtures-01/a", "fixtures-01/ab", "fixtures-02/abc"],
         );
     }
 
     #[test]
     fn npm_example() {
-        assert_change_detection(ChangeDetection::path("fixtures-04"), &[]);
+        assert_change_detection(
+            ChangeDetection::path_exclude("fixtures-04", |path: &Path| {
+                path.to_str() == Some("fixtures-04") || !path.is_dir()
+            }),
+            &[
+                "fixtures-04/dist",
+                "fixtures-04/dist/imgs",
+                "fixtures-04/src",
+                "fixtures-04/src/imgs",
+            ],
+        );
     }
 }
