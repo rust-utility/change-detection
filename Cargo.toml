@@ -1,22 +1,7 @@
-[package]
-name = "change-detection"
-version = "1.1.0"
-authors = ["Alexander Korolev <kilork@yandex.ru>"]
-edition = "2018"
-categories = ["development-tools::build-utils"]
-description = """
-A library to generate change detection instructions during build time.
-"""
-homepage = "https://github.com/rust-utility/change-detection"
-keywords = []
-license = "Unlicense OR MIT"
-readme = "README.md"
-repository = "https://github.com/rust-utility/change-detection"
+[workspace]
 
-[features]
-default = [ "glob" ]
-glob = [ "path-matchers/glob" ]
-
-[dependencies]
-path-slash = "0.1"
-path-matchers = { version = "1.0", default-features = false }
+members = [
+    "lib",
+    "tests/npm-build",
+    "xtask",
+]
