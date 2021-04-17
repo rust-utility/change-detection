@@ -2,18 +2,24 @@ use change_detection::{
     path_matchers::{equal, func, PathMatcherExt},
     ChangeDetection,
 };
-use std::{env, fs, io::Result, path::Path};
+use std::{
+    env, fs,
+    io::Result,
+    path::{Path, PathBuf},
+};
 
 fn main() -> Result<()> {
+    let web_path = PathBuf::from("web");
+
     ChangeDetection::path_exclude(
         "web",
         equal("web")
             .or(equal("web/package-lock.json"))
-            .or(func(move |p| p.starts_with("web/dist"))),
+            .or(func(move |p| {
+                p.starts_with("web/dist") || (p.is_file() && p.parent() != Some(web_path.as_path()))
+            })),
     )
     .generate();
-
-    println!("cargo:return-if-env-changed=TEST_MODIFY_SRC");
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let generated_file = Path::new(&out_dir).join("generated.in");
