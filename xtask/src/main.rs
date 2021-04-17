@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use pico_args::Arguments;
 use std::{
-    env,
+    env, fs,
     io::{self, Write},
     path::{Path, PathBuf},
     process::Command,
@@ -35,17 +35,8 @@ fn cargo_clean_release() -> Result<()> {
     Ok(())
 }
 
-fn cargo_tests_npm_build_without_src_changes() -> Result<String> {
-    cargo_tests_npm_build("TEST_NO_MODIFY_SRC")
-}
-
-fn cargo_tests_npm_build_with_src_changes() -> Result<String> {
-    cargo_tests_npm_build("TEST_MODIFY_SRC")
-}
-
-fn cargo_tests_npm_build(env_flag: &str) -> Result<String> {
+fn cargo_tests_npm_build() -> Result<String> {
     let output = Command::new(cargo())
-        .env(env_flag, "true")
         .args(&["run", "--release"])
         .current_dir(project_root().join("tests/npm-build"))
         .output()?;
@@ -59,10 +50,15 @@ fn cargo_tests_npm_build(env_flag: &str) -> Result<String> {
 }
 
 fn tests_npm_build_without_src_changes() -> Result<()> {
+    eprint!("tests::npm-build::without_src_changes...");
+
     cargo_clean_release()?;
-    let run1 = cargo_tests_npm_build_without_src_changes()?;
+
+    let run1 = cargo_tests_npm_build()?;
+
     cooldown_between_builds();
-    let run2 = cargo_tests_npm_build_without_src_changes()?;
+
+    let run2 = cargo_tests_npm_build()?;
 
     if run1 != run2 {
         return Err(anyhow!(
@@ -74,14 +70,26 @@ This means build.rs was triggered second time but it should not.",
         ));
     }
 
+    eprintln!("ok");
+
     Ok(())
 }
 
 fn tests_npm_build_with_src_changes() -> Result<()> {
+    eprint!("tests::npm-build::with_src_changes...");
+
     cargo_clean_release()?;
-    let run1 = cargo_tests_npm_build_with_src_changes()?;
+
+    let run1 = cargo_tests_npm_build()?;
+
     cooldown_between_builds();
-    let run2 = cargo_tests_npm_build_with_src_changes()?;
+
+    fs::write(
+        project_root().join("tests/npm-build/web/src/index.js"),
+        r#"let a = 1;"#,
+    )?;
+
+    let run2 = cargo_tests_npm_build()?;
 
     if run1 == run2 {
         return Err(anyhow!(
@@ -92,6 +100,8 @@ This means build.rs was not triggered second time but it must.",
             run2
         ));
     }
+
+    eprintln!("ok");
 
     Ok(())
 }
