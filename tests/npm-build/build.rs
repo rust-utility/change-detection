@@ -2,11 +2,7 @@ use change_detection::{
     path_matchers::{equal, func, PathMatcherExt},
     ChangeDetection,
 };
-use std::{
-    env, fs,
-    io::Result,
-    path::{Path, PathBuf},
-};
+use std::{env, fs, io::Result, path::Path};
 
 fn main() -> Result<()> {
     if let Some(_) = option_env!("TEST_MODIFY_SRC") {
@@ -15,17 +11,12 @@ fn main() -> Result<()> {
     fs::write("web/package-lock.json", r#"{"version":"0.1.0"}"#)?;
     fs::write("web/dist/app/index.js", r#"let a = 1;"#)?;
 
-    let web_path = PathBuf::from("web");
-
     ChangeDetection::path("build.rs")
         .path_exclude(
             "web",
             equal("web")
                 .or(equal("web/package-lock.json"))
-                .or(func(move |p| {
-                    p.starts_with("web/dist")
-                        || (p.is_file() && p.parent() != Some(web_path.as_path()))
-                })),
+                .or(func(move |p| p.starts_with("web/dist"))),
         )
         .generate();
     let out_dir = env::var("OUT_DIR").unwrap();
