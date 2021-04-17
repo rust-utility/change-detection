@@ -5,6 +5,8 @@ use std::{
     io::{self, Write},
     path::{Path, PathBuf},
     process::Command,
+    thread::sleep,
+    time::Duration,
 };
 
 fn cargo() -> String {
@@ -59,6 +61,7 @@ fn cargo_tests_npm_build(env_flag: &str) -> Result<String> {
 fn tests_npm_build_without_src_changes() -> Result<()> {
     cargo_clean_release()?;
     let run1 = cargo_tests_npm_build_without_src_changes()?;
+    cooldown_between_builds();
     let run2 = cargo_tests_npm_build_without_src_changes()?;
 
     if run1 != run2 {
@@ -77,6 +80,7 @@ This means build.rs was triggered second time but it should not.",
 fn tests_npm_build_with_src_changes() -> Result<()> {
     cargo_clean_release()?;
     let run1 = cargo_tests_npm_build_with_src_changes()?;
+    cooldown_between_builds();
     let run2 = cargo_tests_npm_build_with_src_changes()?;
 
     if run1 == run2 {
@@ -90,6 +94,10 @@ This means build.rs was not triggered second time but it must.",
     }
 
     Ok(())
+}
+
+fn cooldown_between_builds() {
+    sleep(Duration::from_secs(2));
 }
 
 fn main() -> Result<()> {
