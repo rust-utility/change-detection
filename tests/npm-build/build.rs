@@ -9,14 +9,15 @@ use std::{
 };
 
 fn main() -> Result<()> {
-    let web_path = PathBuf::from("web");
+    let web_pathbuf = PathBuf::from("web");
 
     ChangeDetection::path_exclude(
-        "web",
-        equal("web")
-            .or(equal("web/package-lock.json"))
+        web_pathbuf.clone(),
+        equal(web_pathbuf.clone())
+            .or(equal(web_pathbuf.join("package-lock.json")))
             .or(func(move |p| {
-                p.starts_with("web/dist") || (p.is_file() && p.parent() != Some(web_path.as_path()))
+                p.starts_with(web_pathbuf.join("dist"))
+                    || (p.is_file() && p.parent() != Some(web_pathbuf.as_path()))
             })),
     )
     .generate();
