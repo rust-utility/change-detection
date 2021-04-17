@@ -10,7 +10,7 @@ A library to generate change detection instructions during build time.
 homepage = "https://github.com/rust-utility/change-detection"
 keywords = []
 license = "Unlicense OR MIT"
-readme = "README.md"
+readme = "../README.md"
 repository = "https://github.com/rust-utility/change-detection"
 
 [features]
