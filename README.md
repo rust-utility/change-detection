@@ -76,7 +76,7 @@ fn main() {
 }
 ```
 
-You can actual generated result with this command:
+You can find generated output with this command:
 
 ```bash
 find . -name output | xargs cat
